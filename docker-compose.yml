@@ -16,6 +16,11 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - smart_city_network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   interscsimulator:
     build:
@@ -35,7 +40,8 @@ services:
     networks:
       - smart_city_network
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   rabbitmq_data:
