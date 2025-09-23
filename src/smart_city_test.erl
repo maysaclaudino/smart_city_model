@@ -161,8 +161,13 @@ run() ->
 			string:concat( AmqpClientPath, "/ebin" ),
 			string:concat( AmqpClientPath, "/include/rabbit_common/ebin" )
 		],
-
-	class_Actor:create_initial_actor( class_Street,  [ "Street" , ListEdges , LogName , Paths ] ),
+	
+	OutputFormat = case string:substr( LogName, length(LogName) - 3) of
+		".xml" -> xml;
+		_ -> csv
+	end,
+	
+	class_Actor:create_initial_actor( class_Street,  [ "Street" , ListEdges , LogName , Paths, OutputFormat ] ),
 
 	case MetroFile of
 		ok -> ok;

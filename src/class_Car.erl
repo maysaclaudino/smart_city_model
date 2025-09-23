@@ -91,7 +91,10 @@ verify_next_action( State , _Trips , _Path , _Wait  ) ->
 	Mode = getAttribute( State , mode ), 
 
 	CurrentTickOffset = class_Actor:get_current_tick_offset( State ), 
-	print:write_final_message( Type , TotalLength , StartTime , CarId , CurrentTickOffset , LastPosition , Mode , csv ),
+
+	OutputFormat = ets:lookup_element(options, output_format, 2),
+	print:write_final_message( Type , TotalLength , StartTime , CarId , CurrentTickOffset , LastPosition , Mode , OutputFormat ),
+
 	PathFinish = setAttribute( State , path , finish ),
 
 	executeOneway( PathFinish , scheduleNextSpontaneousTick ).
