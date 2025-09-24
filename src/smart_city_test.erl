@@ -199,6 +199,11 @@ run() ->
 	ListRainfall = rainfall_parser:read_csv( element( 10 , Config ) ),
 	io:format("LIST RAINFALL: ~p~n", [ListRainfall]),
 
+	case ListRainfall of
+		ok -> ok;
+		_  -> class_Actor:create_initial_actor( class_RainfallManager, [ "RainfallManager", ListRainfall ] )
+	end,
+
 	case ets:info(path) of
 		undefined -> ets:new(path, [set, named_table, public, {write_concurrency, true} ]);
                 _ -> ok
