@@ -196,6 +196,9 @@ run() ->
 		_  -> class_Actor:create_initial_actor( class_EventsManager, [ "EventsManager", ListEvents ] )
 	end,
 
+	ListRainfall = rainfall_parser:read_csv( element( 10 , Config ) ),
+	io:format("LIST RAINFALL: ~p~n", [ListRainfall]),
+
 	case ets:info(path) of
 		undefined -> ets:new(path, [set, named_table, public, {write_concurrency, true} ]);
                 _ -> ok
