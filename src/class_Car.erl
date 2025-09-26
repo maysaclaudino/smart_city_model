@@ -164,7 +164,7 @@ get_next_vertex( State , [ Current | Path ] , Mode ) when Mode == walk ->
 	TotalLength = getAttribute( State , distance ) + Distance,
 	FinalState = setAttributes( State , [ { distance , TotalLength } , { car_position , Id } , { path , Path } ] ), 
 
-%	print_movement( State ),
+	% TODO: print walk movement @maysaclaudino
 
 	executeOneway( FinalState , addSpontaneousTick , class_Actor:get_current_tick_offset( FinalState ) + Time );
 
@@ -223,24 +223,25 @@ get_next_vertex( State , Path , _Mode ) ->
 			ets:update_counter( list_streets , Vertices , { 6 , 1 }),
 
 			NewPath = case ModifiedPath of
-					  [_] -> lists:nthtail( 1 , ModifiedPath );
-					  _   -> []
+					  [_] -> [];                               % Se tem 1 elemento, retorna vazio (chegou ao destino)
+					  _   -> lists:nthtail( 1 , ModifiedPath ) % Senão, remove o primeiro elemento
 				  end,
 		
 			ets:update_counter( list_streets , Vertices , { 9 , 1 }),
 
 			{ Id , Time , Distance } = traffic_models:get_speed_car( Data ),
 
+			LastPosition = getAttribute( State , car_position ),
 			TotalLength = getAttribute( State , distance ) + Distance,
 			FinalState = setAttributes( State , [{ wait , false } , {distance , TotalLength} , {car_position , Id} , {last_vertex_pid , Vertices} , {path , NewPath},  { coordFrom , From } ] ), 
 
 			%	send data to rabbitMQ, including the From lat/long
 
-			Uuid = getAttribute( FinalState, uuid ),
+			% Uuid = getAttribute( FinalState, uuid ),
 
 			%io:format("SPAWN PROCESS TO UPDATE ~p~n", [ Uuid ] ),
-			spawn( print, formatAndPublish, [ Uuid, atom_to_list(Id), CurrentTick ] ),
-
+			% spawn( print, formatAndPublish, [ Uuid, atom_to_list(Id), CurrentTick ] ),
+			print_movement( FinalState, LastPosition ),
 			executeOneway( FinalState , addSpontaneousTick , CurrentTick + Time )
 
 	end.
@@ -272,26 +273,20 @@ onFirstDiasca( State, _SendingActorPid ) ->
 	NewState = setAttribute( State , start_time , FirstActionTime ),
 	executeOneway( NewState , addSpontaneousTick , FirstActionTime ).
 
-%print_movement( State ) ->
+print_movement( State, LastPosition ) ->
+	{ Trips , CurrentTickOffset , CarId , Type , NewPosition }
+            = { getAttribute( State , trips ), class_Actor:get_current_tick_offset( State ) , 
+                getAttribute( State , car_name ) , getAttribute( State , type ) , getAttribute( State , car_position ) },
+	CurrentTrip =  lists:nth( 1 , Trips ),
 
-%	LastPosition = getAttribute( State , car_position ),
-
-%	{ Trips , CurrentTickOffset , CarId , Type , NewPosition }
- %            = { getAttribute( LengthState , trips ), class_Actor:get_current_tick_offset( State ) , 
-  %               getAttribute( State , car_name ) , getAttribute( State , type ) , getAttribute( LengthState , car_position ) },
-%	CurrentTrip =  lists:nth( 1 , Trips ),
-
-%	FinalState = case LastPosition == -1 of
-
-%		false ->
-			
-%			print:write_movement_car_message( LengthState , CarId , LastPosition , Type , ets:lookup_element(options, log_pid, 2 ) , CurrentTickOffset , NewPosition , csv  );
+	OutputFormat = ets:lookup_element(options, output_format, 2),
+	
+	case LastPosition == -1 of
+		false ->
+			print:write_movement_car_message( CarId , LastPosition , Type , CurrentTickOffset , NewPosition , OutputFormat  );
  
-
-%		true -> 
-
-%			LinkOrigin = element( 3 , CurrentTrip ), 
-
-%			print:write_initial_message( LengthState , ets:lookup_element(options, log_pid, 2 ) , CarId , Type , CurrentTickOffset , LinkOrigin , LastPosition , csv )
+		true -> 
+			LinkOrigin = element( 3 , CurrentTrip ), 
+			print:write_initial_message( CarId , Type , CurrentTickOffset , LinkOrigin , NewPosition , OutputFormat )
 	   
-%	end.
+	end.
