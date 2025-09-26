@@ -40,7 +40,10 @@ construct( State, ?wooper_construct_parameters ) ->
 		_ -> ok
 	end,
 
-	setAttributes( ActorState, [ { rainfall , Rainfall } ] ).
+	setAttributes( ActorState, [ 
+		{ rainfall , Rainfall },
+		{ accumulated_rainfall , 0.0 }
+	] ).
 
 -spec destruct( wooper:state() ) -> wooper:state().
 destruct( State ) ->
@@ -54,15 +57,50 @@ actSpontaneous( State ) ->
 	CurrentTickOffset = class_Actor:get_current_tick_offset( State ), 
 
 	NewState = case dict:find(  CurrentTickOffset, Rainfall ) of
-			   {ok, CurrentRainfall} -> print_rainfall( State, CurrentRainfall );
+			   {ok, CurrentRainfall} -> process_rainfall( State, CurrentRainfall, CurrentTickOffset );
 			   error -> State
 		   end,
 
 	executeOneway( NewState , addSpontaneousTick, CurrentTickOffset + 1 ).
 
-print_rainfall( State, CurrentRainfall ) ->
-	io:format("Rainfall: ~p~n", [CurrentRainfall]),
-	State.
+-spec process_rainfall( wooper:state(), number(), integer() ) -> wooper:state().
+process_rainfall( State, CurrentRainfall, CurrentTickOffset ) ->
+
+	Rainfall = getAttribute( State, rainfall ),
+
+	AccumulatedRainfall = calculate_accumulated_rainfall( Rainfall, CurrentTickOffset ),
+	
+	NewState = setAttribute( State, accumulated_rainfall, AccumulatedRainfall ),
+	
+	io:format("CurrentTickOffset: ~p | Rainfall: ~p | Accumulated: ~.2f~n", [CurrentTickOffset, CurrentRainfall, AccumulatedRainfall]),
+	
+	NewState.
+
+-spec calculate_accumulated_rainfall( dict:dict(), integer() ) -> number().
+calculate_accumulated_rainfall( Rainfall, CurrentTime ) ->
+	Period = 60 * 60 * 3, % 3 hours
+	
+	StartTime = CurrentTime - Period,
+	
+	AllKeys = dict:fetch_keys( Rainfall ),
+	
+	PeriodKeys = lists:filter( 
+		fun( Time ) -> Time >= StartTime andalso Time =< CurrentTime end, 
+		AllKeys 
+	),
+	
+	% Return the sum of the rainfall values in the last period
+	lists:sum( 
+		lists:map( 
+			fun( Time ) -> 
+				case dict:find( Time, Rainfall ) of
+					{ok, Value} -> Value;
+					error -> 0
+				end
+			end, 
+			PeriodKeys 
+		) 
+	).
 
 -spec onFirstDiasca( wooper:state(), pid() ) -> oneway_return().
 onFirstDiasca( State, _SendingActorPid ) ->

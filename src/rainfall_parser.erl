@@ -22,6 +22,6 @@ read_line( Count , [ Data | ListRest ] ) ->
         TextSplit = string:split( Text ,  ";" , all ),
         { Time, _ } = string:to_integer( lists:nth( 1 , TextSplit ) ),
         { Rainfall, _ } = string:to_float( lists:nth( 2 , TextSplit ) ),
-        Element = { Time, [ { Rainfall } ] },
+        Element = { Time, Rainfall },
         [ Element | read_line( Count +1 , ListRest ) ]
     end.
