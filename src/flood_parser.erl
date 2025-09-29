@@ -25,6 +25,6 @@ read_line( Count , [ Data | ListRest ] ) ->
         { FromNode, _ } = string:to_integer( lists:nth( 3 , TextSplit ) ),
         { ToNode, _ } = string:to_integer( lists:nth( 4 , TextSplit ) ),
         { Rainfall, _ } = string:to_float( lists:nth( 5 , TextSplit ) ),
-        Element = { LinkId, [ { FromNode, ToNode, Rainfall, RoadName } ] },
+        Element = { Rainfall, [ { LinkId, FromNode, ToNode, RoadName } ] },
         [ Element | read_line( Count +1 , ListRest ) ]
     end.

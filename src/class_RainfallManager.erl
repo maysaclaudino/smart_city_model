@@ -5,17 +5,17 @@
 -define( wooper_superclasses, [ class_Actor ] ).
 
 % parameters taken by the constructor ('construct').
--define( wooper_construct_parameters, ActorSettings , RainfallName , ListRainfall ).
+-define( wooper_construct_parameters, ActorSettings , RainfallName , ListRainfall, ListFlood ).
 
 % Declaring all variations of WOOPER-defined standard life-cycle operations:
 % (template pasted, just two replacements performed to update arities)
--define( wooper_construct_export, new/3, new_link/3,
-		 synchronous_new/3, synchronous_new_link/3,
-		 synchronous_timed_new/3, synchronous_timed_new_link/3,
-		 remote_new/4, remote_new_link/4, remote_synchronous_new/4,
-		 remote_synchronous_new_link/4, remote_synchronisable_new_link/4,
-		 remote_synchronous_timed_new/4, remote_synchronous_timed_new_link/4,
-		 construct/4, destruct/1 ).
+-define( wooper_construct_export, new/4, new_link/4,
+		 synchronous_new/4, synchronous_new_link/4,
+		 synchronous_timed_new/4, synchronous_timed_new_link/4,
+		 remote_new/5, remote_new_link/5, remote_synchronous_new/5,
+		 remote_synchronous_new_link/5, remote_synchronisable_new_link/5,
+		 remote_synchronous_timed_new/5, remote_synchronous_timed_new_link/5,
+		 construct/5, destruct/1 ).
 
 % Method declarations.
 -define( wooper_method_export, actSpontaneous/1, onFirstDiasca/2 ).
@@ -28,10 +28,12 @@
 -include("wooper.hrl").
 
 -spec construct( wooper:state(), class_Actor:actor_settings(),
-				class_Actor:name() , parameter() ) -> wooper:state().
+				class_Actor:name() , parameter(), parameter() ) -> wooper:state().
 construct( State, ?wooper_construct_parameters ) ->
     
 	Rainfall = dict:from_list( ListRainfall ),
+	Flood = group_duplicates( ListFlood ),
+	io:format("FLOOD MAP: ~p~n", [Flood]),
 
 	ActorState = class_Actor:construct( State, ActorSettings , RainfallName ),
 
@@ -42,6 +44,7 @@ construct( State, ?wooper_construct_parameters ) ->
 
 	setAttributes( ActorState, [ 
 		{ rainfall , Rainfall },
+		{ flood , Flood },
 		{ accumulated_rainfall , 0.0 }
 	] ).
 
@@ -74,6 +77,8 @@ process_rainfall( State, CurrentRainfall, CurrentTickOffset ) ->
 	
 	io:format("CurrentTickOffset: ~p | Rainfall: ~p | Accumulated: ~.2f~n", [CurrentTickOffset, CurrentRainfall, AccumulatedRainfall]),
 	
+	close_streets( NewState, AccumulatedRainfall ),
+
 	NewState.
 
 -spec calculate_accumulated_rainfall( dict:dict(), integer() ) -> number().
@@ -101,6 +106,44 @@ calculate_accumulated_rainfall( Rainfall, CurrentTime ) ->
 			PeriodKeys 
 		) 
 	).
+
+-spec close_streets( wooper:state(), number() ) -> ok.
+close_streets( State, AccumulatedRainfall ) ->
+    Flood = getAttribute( State, flood ),
+    CurrentTickOffset = class_Actor:get_current_tick_offset( State ),
+    AllKeys = dict:fetch_keys( Flood ),
+
+    RainfallKeys = lists:filter( 
+        fun( RainfallLimit ) -> RainfallLimit =< AccumulatedRainfall end,
+        AllKeys 
+    ),
+
+    io:format("RAINFALL ACHIEVED: ~p~n", [RainfallKeys]),
+    
+    lists:foreach(  % Use foreach em vez de map
+        fun ( Rain ) ->
+            case dict:find( Rain, Flood ) of
+                {ok, StreetList} ->
+                    io:format("TICK: ~p | SHOULD CLOSE STREETS: ~p~n", [CurrentTickOffset, StreetList]);
+                error -> 
+                    ok
+            end
+        end,
+        RainfallKeys
+    ),
+
+    ok.
+
+-spec group_duplicates( list() ) -> dict:dict().
+group_duplicates(List) ->
+    lists:foldl(fun({Key, Value}, Dict) ->
+        case dict:find(Key, Dict) of
+            {ok, ExistingValues} ->
+                dict:store(Key, [Value | ExistingValues], Dict);
+            error ->
+                dict:store(Key, [Value], Dict)
+        end
+    end, dict:new(), List).
 
 -spec onFirstDiasca( wooper:state(), pid() ) -> oneway_return().
 onFirstDiasca( State, _SendingActorPid ) ->
