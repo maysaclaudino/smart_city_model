@@ -181,7 +181,12 @@ get_next_vertex( State , Path , _Mode ) ->
 					       [{ _ , _ }] ->
 						       [ { _, Graph } ] = ets:lookup( graph, mygraph ),
 						       [ Destination ] = lists:nthtail(length(Path)-1, Path),
-						       digraph:get_short_path( Graph , Origin , Destination );
+
+							   [ { _, V1 } ] = ets:lookup( graph, atom_to_list( Origin ) ), 
+							   [ { _, V2 } ] = ets:lookup( graph, atom_to_list( Destination ) ), 
+
+						       ShortPath = digraph:get_short_path( Graph , V1 , V2 ),
+							   lists:map(fun(['$v'|Id]) -> Id + 1 end, ShortPath);
 					       _ -> Path
 				       end
 		       end,

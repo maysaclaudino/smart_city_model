@@ -120,7 +120,7 @@ close_streets( State, AccumulatedRainfall ) ->
 
     io:format("RAINFALL ACHIEVED: ~p~n", [RainfallKeys]),
     
-    lists:foreach(  % Use foreach em vez de map
+    lists:foreach(
         fun ( Rain ) ->
             case dict:find( Rain, Flood ) of
                 {ok, StreetList} ->
