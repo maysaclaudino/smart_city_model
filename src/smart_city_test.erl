@@ -188,13 +188,8 @@ run() ->
 		class_Actor:create_initial_actor( class_Parking , [ "Parking" , ParkSpots ] )
 	end,
 
-	ListEvents = events_parser:read_csv( element( 9 , Config ) ),
-	io:format("LIST EVENTS: ~p~n", [ListEvents]),
-
-	case ListEvents of
-		ok -> ok;
-		_  -> class_Actor:create_initial_actor( class_EventsManager, [ "EventsManager", ListEvents ] )
-	end,
+	ListInputEvents = events_parser:read_csv( element( 9 , Config ) ),
+	io:format("LIST EVENTS: ~p~n", [ListInputEvents]),
 
 	ListRainfall = rainfall_parser:read_csv( element( 10 , Config ) ),
 	io:format("LIST RAINFALL: ~p~n", [ListRainfall]),
@@ -202,9 +197,22 @@ run() ->
 	ListFlood = flood_parser:read_csv( element( 11 , Config ) ),
 	io:format("LIST FLOOD: ~p~n", [ListFlood]),
 
-	case ListRainfall of
+	ListFloodEvents = case {ListRainfall, ListFlood} of
+		{ok, _} -> ok;
+		{_, ok} -> ok;
+		{Rainfall, Flood} -> flood_parser:get_flood_events( Rainfall, Flood )
+	end,
+
+	ListEvents = case {ListInputEvents, ListFloodEvents} of
+		{ok, ok} -> ok;
+		{InputEvents, ok} -> InputEvents;
+		{ok, FloodEvents}  -> FloodEvents;
+		{InputEvents, FloodEvents} -> lists:flatten([InputEvents, FloodEvents])
+	end,
+
+	case ListEvents of
 		ok -> ok;
-		_  -> class_Actor:create_initial_actor( class_RainfallManager, [ "RainfallManager", ListRainfall, ListFlood ] )
+		_  -> class_Actor:create_initial_actor( class_EventsManager, [ "EventsManager", ListEvents ] )
 	end,
 
 	case ets:info(path) of

@@ -174,11 +174,10 @@ get_next_vertex( State , Path , _Mode ) ->
 	Vertices = list_to_atom( lists:concat( [ Origin  , lists:nth( 2 , Path ) ] )),
 
 	ModifiedPath = case ets:info(events) of
-			       undefined ->
-				       Path;
+			       undefined -> ok;
 			       _ ->
 				       case ets:lookup( events, Vertices ) of
-					       [{ _ , _ }] ->
+					       [{ _ , _ , _ }] ->
 						       [ { _, Graph } ] = ets:lookup( graph, mygraph ),
 						       [ Destination ] = lists:nthtail(length(Path)-1, Path),
 
@@ -186,8 +185,12 @@ get_next_vertex( State , Path , _Mode ) ->
 							   [ { _, V2 } ] = ets:lookup( graph, atom_to_list( Destination ) ), 
 
 						       ShortPath = digraph:get_short_path( Graph , V1 , V2 ),
-							   lists:map(fun(['$v'|Id]) -> Id + 1 end, ShortPath);
-					       _ -> Path
+							   lists:map(
+								fun(Vertex) -> 
+									{_, {Id}} = digraph:vertex(Graph, Vertex),
+									Id
+								end, ShortPath);
+					       _ -> ok
 				       end
 		       end,
 
@@ -207,12 +210,17 @@ get_next_vertex( State , Path , _Mode ) ->
 			ok
 
 	end,
+	
+	NewPath = case ModifiedPath of
+		ok -> lists:nthtail( 1 , Path );
+		_ -> ModifiedPath
+	end,
 
 	case NumCars >= MaxCar of
 
 		true ->
 
-			FinalState = setAttributes( State , [ { wait, true }, { path, ModifiedPath } ] ),
+			FinalState = setAttributes( State , [ { wait, true }, { path, NewPath } ] ),
 			executeOneway( FinalState , addSpontaneousTick , CurrentTick + 1 );
 
 		false ->
@@ -227,10 +235,6 @@ get_next_vertex( State , Path , _Mode ) ->
 
 			ets:update_counter( list_streets , Vertices , { 6 , 1 }),
 
-			NewPath = case ModifiedPath of
-					  [_] -> [];                               % Se tem 1 elemento, retorna vazio (chegou ao destino)
-					  _   -> lists:nthtail( 1 , ModifiedPath ) % Senão, remove o primeiro elemento
-				  end,
 		
 			ets:update_counter( list_streets , Vertices , { 9 , 1 }),
 

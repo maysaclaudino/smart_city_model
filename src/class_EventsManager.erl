@@ -28,13 +28,21 @@
 -include("wooper.hrl").
 
 
-% Creates a list with the parking spots in the city
+% Creates a list with the road closure events in the city
 %
 -spec construct( wooper:state(), class_Actor:actor_settings(),
 				class_Actor:name() , parameter() ) -> wooper:state().
 construct( State, ?wooper_construct_parameters ) ->
     
-	Events = dict:from_list( ListOfEvents ),
+	% Create a dictionary with the events, does not overwrite events with the same time
+	% Key: Time, Value: List of events
+    Events = lists:foldl(
+        fun({Time, Event}, AccDict) ->
+            dict:append(Time, Event, AccDict)
+        end,
+        dict:new(),
+        ListOfEvents
+    ),
 
 	ActorState = class_Actor:construct( State, ActorSettings , EventsName ),
 
@@ -90,19 +98,37 @@ iterate_events( State, [ Event | Events ] ) ->
 				   V2 = element( 3, Event ),
 				   Duration = element( 4, Event ),
 
-				   [ { _, GraphManagerPid } ] = ets:lookup( graph, mypid ),
-
-				   GraphManagerPid ! { delete_edge, V1, V2 },
-
-				   EdgeID = list_to_atom( string:concat(atom_to_list(V1), atom_to_list(V2)) ),
-				   ets:insert( events, { EdgeID , remove }),
-
 				   OpenStreetEvent = { "open_street", V1, V2 },
 				   CurrentTickOffset = class_Actor:get_current_tick_offset( State ),
-				   EventsDict = getAttribute( State, events ),
-				   NewEvents = dict:append( CurrentTickOffset + Duration, OpenStreetEvent, EventsDict ),
-				   setAttribute( State, events, NewEvents );
+				   OpeningTick = CurrentTickOffset + Duration,
+				   
+				   EdgeID = list_to_atom( string:concat(atom_to_list(V1), atom_to_list(V2)) ),
+				   case ets:lookup( events, EdgeID ) of
+					   [{ _, remove, OldOpeningTick }] ->
+						   % if the street is already closed
+						   EventsDict = getAttribute( State, events ),
 
+						   % update the open streetevent with the new opening tick
+						   NewEventsDict = dict:update(
+							   OldOpeningTick,
+							   fun(EventsList) ->
+								   lists:filter(fun(E) -> E =/= OpenStreetEvent end, EventsList)
+							   end,
+							   EventsDict
+						   ),
+
+						   NewEvents = dict:append( OpeningTick, OpenStreetEvent, NewEventsDict ),
+						   setAttribute( State, events, NewEvents );
+
+					   _ ->
+						   % if the street is not closed
+						   [ { _, GraphManagerPid } ] = ets:lookup( graph, mypid ),
+						   GraphManagerPid ! { delete_edge, V1, V2 },
+						   ets:insert( events, { EdgeID , remove, OpeningTick }),
+						   EventsDict = getAttribute( State, events ),
+						   NewEvents = dict:append( OpeningTick, OpenStreetEvent, EventsDict ),
+						   setAttribute( State, events, NewEvents )
+				   end;
 
 			   "restore_capacity" ->
 				   EdgeID = element( 2, Event ),
