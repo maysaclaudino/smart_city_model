@@ -174,25 +174,28 @@ get_next_vertex( State , Path , _Mode ) ->
 	Vertices = list_to_atom( lists:concat( [ Origin  , lists:nth( 2 , Path ) ] )),
 
 	ModifiedPath = case ets:info(events) of
-			       undefined -> ok;
-			       _ ->
-				       case ets:lookup( events, Vertices ) of
-					       [{ _ , _ , _ }] ->
-						       [ { _, Graph } ] = ets:lookup( graph, mygraph ),
-						       [ Destination ] = lists:nthtail(length(Path)-1, Path),
+		undefined -> ok;
+		_ ->
+			case ets:lookup( events, Vertices ) of
+				[{ _ , _ , _ }] ->
+					[ { _, Graph } ] = ets:lookup( graph, mygraph ),
+					[ Destination ] = lists:nthtail(length(Path)-1, Path),
 
-							   [ { _, V1 } ] = ets:lookup( graph, atom_to_list( Origin ) ), 
-							   [ { _, V2 } ] = ets:lookup( graph, atom_to_list( Destination ) ), 
+					[ { _, V1 } ] = ets:lookup( graph, atom_to_list( Origin ) ), 
+					[ { _, V2 } ] = ets:lookup( graph, atom_to_list( Destination ) ), 
 
-						       ShortPath = digraph:get_short_path( Graph , V1 , V2 ),
-							   lists:map(
-								fun(Vertex) -> 
-									{_, {Id}} = digraph:vertex(Graph, Vertex),
-									Id
-								end, ShortPath);
-					       _ -> ok
-				       end
-		       end,
+					ShortPath = digraph:get_short_path( Graph , V1 , V2 ),
+					case ShortPath of
+						false -> false;
+						_ -> lists:map(
+							fun(Vertex) -> 
+								{_, {Id}} = digraph:vertex(Graph, Vertex),
+								list_to_atom(Id)
+							end, ShortPath)
+					end;
+				_ -> ok
+			end
+		end,
 
 	CurrentTick = class_Actor:get_current_tick_offset( State ),
 	
