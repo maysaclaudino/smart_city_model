@@ -184,7 +184,18 @@ get_next_vertex( State , Path , _Mode ) ->
 					[ { _, V1 } ] = ets:lookup( graph, atom_to_list( Origin ) ), 
 					[ { _, V2 } ] = ets:lookup( graph, atom_to_list( Destination ) ), 
 
-					ShortPath = digraph:get_short_path( Graph , V1 , V2 ),
+					% Tentar calcular o caminho, tratando erro quando não há caminho
+					ShortPath = try
+						digraph:get_short_path( Graph , V1 , V2 )
+					catch
+						error:{badmatch, false} ->
+							% Quando não há caminho, digraph pode lançar badmatch
+							false;
+						_:_ ->
+							% Outros erros também são tratados como "sem caminho"
+							false
+					end,
+					
 					case ShortPath of
 						false -> false;
 						_ -> lists:map(
