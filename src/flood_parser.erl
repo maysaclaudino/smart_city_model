@@ -51,10 +51,14 @@ close_street_events( Flood, Rainfall ) ->
         lists:map(
             fun(Time) ->
                 AccumulatedRainfall = calculate_accumulated_rainfall( Rainfall, Time ),
+
+                ReduceTrafficEvents = generate_reduce_traffic_events( AccumulatedRainfall ),
             
                 FloodStreets = get_flood_streets( Flood, AccumulatedRainfall ),
             
-                EventsList = generate_close_street_events( FloodStreets ),
+                CloseStreetEvents = generate_close_street_events( FloodStreets ),
+
+                EventsList = lists:flatten([ReduceTrafficEvents, CloseStreetEvents]),
                 
                 % Creates a list of tuples {Time, Event}
                 lists:map(
@@ -140,3 +144,30 @@ generate_close_street_events( FloodStreets ) ->
     ),
 
     EventsList.
+
+generate_reduce_traffic_events( AccumulatedRainfall ) ->
+    MinRainfall = 5.0,
+    MaxRainfall = 30.0,
+    DeltaRainfall = MaxRainfall - MinRainfall,
+
+    MinSpeedDecrease = 2,
+    MaxSpeedDecrease = 17,
+    DeltaSpeedDecrease = MaxSpeedDecrease - MinSpeedDecrease,
+
+    MinCapacityDecrease = 4,
+    MaxCapacityDecrease = 30,
+    DeltaCapacityDecrease = MaxCapacityDecrease - MinCapacityDecrease,
+
+    case AccumulatedRainfall of
+        X when X < MinRainfall ->
+            ReduceTrafficEvent = { "reduce_traffic", 100, 100 },
+            [ ReduceTrafficEvent ];
+        X when X >= MaxRainfall ->
+            ReduceTrafficEvent = { "reduce_traffic", 100 - MaxCapacityDecrease, 100 - MaxSpeedDecrease },
+            [ ReduceTrafficEvent ];
+        _ ->
+            SpeedDecrease = (DeltaSpeedDecrease / DeltaRainfall) * (AccumulatedRainfall - MinRainfall) + MinSpeedDecrease,
+            CapacityDecrease = (DeltaCapacityDecrease / DeltaRainfall) * (AccumulatedRainfall - MinRainfall) + MinCapacityDecrease,
+            ReduceTrafficEvent = { "reduce_traffic", 100 - CapacityDecrease, 100 - SpeedDecrease },
+            [ ReduceTrafficEvent ]
+    end.

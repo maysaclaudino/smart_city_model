@@ -51,6 +51,14 @@ construct( State, ?wooper_construct_parameters ) ->
 		_ -> ok
 	end,
 
+	case ets:info(traffic_factors) of
+		undefined -> 
+			ets:new(traffic_factors, [public, set, named_table]),
+			ets:insert(traffic_factors, { capacity_reduction, 1.0 }),
+			ets:insert(traffic_factors, { speed_reduction, 1.0 });
+		_ -> ok
+	end,
+
 	setAttributes( ActorState, [ { events , Events } ] ).
 
 -spec destruct( wooper:state() ) -> wooper:state().
@@ -77,7 +85,7 @@ iterate_events( State, [] ) ->
 iterate_events( State, [ Event | Events ] ) ->
 	NewState = case element( 1, Event ) of
 			   "open_street" ->
-				   io:format("OPEN STREET~n"),
+				%    io:format("OPEN STREET~n"),
 
 				   V1 = element( 2, Event ),
 				   V2 = element( 3, Event ),
@@ -92,7 +100,7 @@ iterate_events( State, [ Event | Events ] ) ->
 				   State;
 
 			   "close_street" ->
-				   io:format("CLOSE STREET~n"),
+				%    io:format("CLOSE STREET~n"),
 
 				   V1 = element( 2, Event ),
 				   V2 = element( 3, Event ),
@@ -158,7 +166,26 @@ iterate_events( State, [ Event | Events ] ) ->
 				   CurrentTickOffset = class_Actor:get_current_tick_offset( State ),
 				   EventsDict = getAttribute( State, events ),
 				   NewEvents = dict:append( CurrentTickOffset + Duration, RestoreCapacityEvent, EventsDict ),
-				   setAttribute( State, events, NewEvents )
+				   setAttribute( State, events, NewEvents );
+				
+				"reduce_traffic" ->
+					io:format("REDUCE TRAFFIC~n"),
+					% Reduce capacity all streets by a certain percentage and reduce all vehicles velocity by a certain percentage
+					CapacityFactor = element( 2, Event ),
+					VelocityFactor = element( 3, Event ),
+					
+					ets:insert(traffic_factors, { capacity_reduction, CapacityFactor / 100.0 }),
+					ets:insert(traffic_factors, { speed_reduction, VelocityFactor / 100.0 }),
+					State
+
+				% "restore_traffic" ->
+				% 	io:format("RESTORE TRAFFIC~n"),
+				% 	% Restore capacity all streets to the original value and restore all vehicles velocity to the original value
+					
+				% 	ets:insert(traffic_factors, { capacity_reduction, 1.0 }),
+				% 	ets:insert(traffic_factors, { speed_reduction, 1.0 }),
+
+				% 	State
 
 		   end,
 	iterate_events( NewState, Events ).

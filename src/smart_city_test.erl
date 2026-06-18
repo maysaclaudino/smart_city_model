@@ -189,13 +189,13 @@ run() ->
 	end,
 
 	ListInputEvents = events_parser:read_csv( element( 9 , Config ) ),
-	io:format("LIST EVENTS: ~p~n", [ListInputEvents]),
+	% io:format("LIST EVENTS: ~p~n", [ListInputEvents]),
 
 	ListRainfall = rainfall_parser:read_csv( element( 10 , Config ) ),
-	io:format("LIST RAINFALL: ~p~n", [ListRainfall]),
+	% io:format("LIST RAINFALL: ~p~n", [ListRainfall]),
 
 	ListFlood = flood_parser:read_csv( element( 11 , Config ) ),
-	io:format("LIST FLOOD: ~p~n", [ListFlood]),
+	% io:format("LIST FLOOD: ~p~n", [ListFlood]),
 
 	ListFloodEvents = case {ListRainfall, ListFlood} of
 		{ok, _} -> ok;
